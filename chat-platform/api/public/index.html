@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat with Achalugo 💞</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="https://files.catbox.moe/60tbep.jpg">
+    <style>
+        body {
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+            background-image: url('https://i.postimg.cc/tgWyQ6Gd/IMG-20250917-WA0018.jpg');
+            background-size: cover;
+            background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-container {
+            background: rgba(255,255,255,0.80);
+            border-radius: 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            width: 450px;
+            height: 750px;
+            max-width: 95vw;
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+        }
+        .chat-header {
+            text-align: center;
+            font-size: 24px;
+            color: #800080;
+            margin-bottom: 16px;
+            font-weight: bold;
+        }
+        .chat-box {
+            min-height: 200px;
+            max-height: 820px;
+            overflow-y: auto;
+            background: #f7f0fa;
+            border-radius: 15px;
+            padding: 10px;
+            height: 90%;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(128, 0, 128, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+        .chat-box::before {
+            content: "P";
+            position: absolute;
+            font-size: 700px;
+            color: rgba(128,0,128,0.08);
+            left: 50%;
+            top: 55%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 0;
+            font-weight: bold;
+            user-select: none;
+        }
+        .chat-message {
+            background: #e2c0f7;
+            padding: 8px 14px;
+            border-radius: 10px;
+            max-width: 80%;
+            align-self: flex-end;
+            color: #330033;
+            font-size: 16px;
+            z-index: 1;
+            position: relative;
+        }
+        .chat-message.other {
+            background: #f7d0e7;
+            align-self: flex-start;
+            color: #800080;
+        }
+        .chat-input-row {
+            display: flex;
+            gap: 8px;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 18px;
+            border-radius: 14px;
+            border: 1px solid #ccc;
+            font-size: 18px;
+            outline: none;
+        }
+        .chat-file-btn {
+            padding: 10px 10px;
+            border-radius: 14px;
+            background: rgba(128,0,128,0.30);
+            color: #fff;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .chat-file-btn:hover {
+            background: rgba(128,0,128,0.60);
+        }
+        .chat-send-btn {
+            padding: 0 18px;
+            border-radius: 14px;
+            background: rgba(128,0,128,0.90);
+            color: #fff;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .chat-send-btn:hover {
+            background: rgba(128,0,128,0.60);
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            Chat with Achalugo 💞
+        </div>
+        <div class="chat-box" id="chatBox"></div>
+        <div class="chat-input-row">
+            <input type="text" class="chat-input" id="chatInput" placeholder="Type your message...">
+            <button class="chat-file-btn" id="filebtn">🧬</button>
+            <button class="chat-send-btn" id="sendBtn">✈️</button>
+        </div>
+    </div>
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        // Local message storage fallback
+        let localMessages = [
+            { sender: 'me', text: 'Welcome to the chat! 💞', synced: false }
+        ];
+        let usingBackend = true;
+        let lastMessageCount = 0;
+        const backendUrl = '/api/messages';
+
+        async function loadMessages() {
+            try {
+                const res = await fetch(backendUrl);
+                if (!res.ok) throw new Error('Backend not available');
+                const msgs = await res.json();
+                if (!usingBackend) await syncLocalMessages();
+                usingBackend = true;
+                chatBox.innerHTML = '';
+                msgs.forEach(msg => addMessage(msg.text, msg.sender));
+                lastMessageCount = msgs.length;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (err) {
+                usingBackend = false;
+                renderLocalMessages();
+            }
+        }
+        function renderLocalMessages() {
+            chatBox.innerHTML = '';
+            localMessages.forEach(msg => addMessage(msg.text, msg.sender));
+            lastMessageCount = localMessages.length;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        function addMessage(text, sender = 'me') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'chat-message' + (sender === 'me' ? '' : ' other');
+            msgDiv.textContent = text;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        async function syncLocalMessages() {
+            for (let msg of localMessages) {
+                if (!msg.synced) {
+                    try {
+                        await fetch(backendUrl, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ sender: msg.sender, text: msg.text })
+                        });
+                        msg.synced = true;
+                    } catch (e) {
+                        usingBackend = false;
+                        break;
+                    }
+                }
+            }
+            await loadMessages();
+            localMessages = [];
+        }
+        sendBtn.addEventListener('click', async () => {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            if (usingBackend) {
+                try {
+                    await fetch(backendUrl, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ sender: 'me', text })
+                    });
+                    await loadMessages();
+                } catch (err) {
+                    usingBackend = false;
+                    localMessages.push({ sender: 'me', text, synced: false });
+                    renderLocalMessages();
+                }
+            } else {
+                localMessages.push({ sender: 'me', text, synced: false });
+                renderLocalMessages();
+            }
+            chatInput.value = '';
+        });
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendBtn.click();
+        });
+        setInterval(loadMessages, 1500);
+        loadMessages();
+    </script>
+</body>
+      </html>
